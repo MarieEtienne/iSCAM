@@ -266,7 +266,14 @@ DATA_SECTION
 	//END_CALCS
 	
 	init_number fixed_m;		//FIXME: depricate this from data files
-	init_number linf;
+	init_vector natM(sage,nage);
+	LOC_CALCS
+		cout << "Natural mortality at age "<<natM<< endl;
+	END_CALCS
+	init_number linf;	
+	LOC_CALCS
+		cout << "linf "<<linf<<endl;
+	END_CALCS
 	init_number vonbk;
 	init_number to;
 	init_number a;
@@ -929,7 +936,7 @@ PROCEDURE_SECTION
 
 	calcTotalMortality();
 	
-        if(verbose) cout<<"||-- BEFORE calcNumbersAtAge --||"<<endl;
+        if(verbose) cout<<"||-- BEFORE umbersAtAge --||"<<endl;
 	calcNumbersAtAge();
 	
 	calcFisheryObservations();
@@ -1368,8 +1375,11 @@ FUNCTION calcTotalMortality
 	
 	//Natural mortality (year and age specific)
 	//M_tot(syr,nyr,sage,nage);
-	M_tot = m;
-
+	
+	// TODO Ajouter une mortalite naturelle fixe maispar age
+	// dans BFT stockassesment
+	for(i=syr; i<= nyr; i++)
+		M_tot(i)=natM;
 
 	// Cubic spline to interpolate log_m_devs (log_m_nodes)
 	log_m_devs = 0.;
@@ -1391,13 +1401,15 @@ FUNCTION calcTotalMortality
 		// if(active(log_m_devs)&&i>syr)
 		if(active(log_m_nodes)&&i>syr)
 		{
-			M_tot(i)=M_tot(i-1)*exp(log_m_devs(i));
+		  //M_tot(i)=M_tot(i-1)*exp(log_m_devs(i));
+		  M_tot(i)=natM;
 		}
 	}
 	m_bar = mean( M_tot.sub(pf_cntrl(1),pf_cntrl(2)) );
 	
 	Z=M_tot+F;
 	S=mfexp(-Z);
+	if(verbose) cout <<"tot mortalite : "<< M_tot<<endl;
 	if(verbose) cout<<"**** OK after calcTotalMortality ****"<<endl;
 	
   }
