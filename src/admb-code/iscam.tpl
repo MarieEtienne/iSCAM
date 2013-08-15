@@ -358,12 +358,22 @@ DATA_SECTION
 	init_ivector a_nage(1,na_gears);	//oldest age in the ageing matrix
 
 	init_3darray A(1,na_gears,1,na_nobs,a_sage-2,a_nage);
-	
-	//Mean weight-at-age data (units are kg) (if exists)
+
+	LOC_CALCS
+	        cout<<"After loading Caa data"<<endl;
+		for(k=1;k<=na_gears;k++)
+		{
+		    for(i=1;i<=na_nobs(k);++i)
+		      cout<<A(k)(i)<<endl;
+		}
+	END_CALCS
+
+//Mean weight-at-age data (units are kg) (if exists)
 	init_int n_wt_nobs;
 	init_matrix tmp_wt_obs(1,n_wt_nobs,sage-1,nage);
+        !! cout << "ok" << endl;
 	
-	matrix wt_obs(syr,nyr+1,sage,nage);		//weight-at-age
+        matrix wt_obs(syr,nyr+1,sage,nage);		//weight-at-age
 	matrix wt_dev(syr,nyr+1,sage,nage);		//standardized deviations in weight-at-age
 	matrix fec(syr,nyr+1,sage,nage);		//fecundity-at-age
 	vector fa_bar(sage,nage);				//average fecundity-at-age for all years.
@@ -564,6 +574,7 @@ DATA_SECTION
 	END_CALCS
 	!! COUT(isel_type);
 	!! COUT(sel_dome_wt);
+        // !! exit(1);
 	// Selectivity blocks for each gear.
 	init_imatrix sel_blocks(1,ngear,1,n_sel_blocks);
 	!! COUT(sel_blocks);
@@ -756,13 +767,13 @@ PARAMETER_SECTION
 	
 	init_bounded_number_vector theta(1,npar,theta_lb,theta_ub,theta_phz);
 	//!! for(int i=1;i<=npar;i++) theta(i)=theta_ival(i);
-	
+        
 	//Selectivity parameters (A very complicated ragged array)
 	init_bounded_matrix_vector sel_par(1,ngear,1,jsel_npar,1,isel_npar,-25.,25.,sel_phz);
 	LOC_CALCS
 		//initial values for logistic selectivity parameters
 		//set phase to -1 for fixed selectivity.
-		if (!global_parfile)
+         	if (!global_parfile)
 		{
 			for(int k=1;k<=ngear;k++)
 			{
@@ -900,6 +911,8 @@ PRELIMINARY_CALCS_SECTION
   if(SimFlag) 
   {
     initParameters();
+	if(verbose) cout<<"||-- SIMULATION MODE--||"<<endl;
+
     simulationModel(rseed);
   }
   if(verbose) cout<<"||-- END OF PRELIMINARY_CALCS_SECTION --||"<<endl;
@@ -911,11 +924,12 @@ RUNTIME_SECTION
 
 PROCEDURE_SECTION
 	initParameters();
-	
+  
 	calcSelectivities(isel_type);
-	
+
 	calcTotalMortality();
 	
+        if(verbose) cout<<"||-- BEFORE calcNumbersAtAge --||"<<endl;
 	calcNumbersAtAge();
 	
 	calcFisheryObservations();
@@ -967,7 +981,7 @@ FUNCTION initParameters
 
 
 	*/
-	
+        
 	ro          = mfexp(theta(1));
 	dvariable h = theta(2);
 	m           = mfexp(theta(3));
@@ -1088,7 +1102,6 @@ FUNCTION void calcSelectivities(const ivector& isel_type)
 		empirical weight-at-age data, then calculate selectivity based on 
 		mean length.
 	*/
-
 	int i,j,k,byr,bpar;
 	double tiny=1.e-10;
 	dvariable p1,p2,p3;
@@ -1099,26 +1112,28 @@ FUNCTION void calcSelectivities(const ivector& isel_type)
 	dvar_matrix ttmp2(sage,nage,syr,nyr);
 	//jlog_sel.initialize();
 	log_sel.initialize();
+	
 	avg_log_sel.initialize();
 	
 	for(j=1;j<=ngear;j++)
-	{
-		tmp.initialize(); tmp2.initialize();
-		dvector iy(1,yr_nodes(j));
-		dvector ia(1,age_nodes(j));
-		byr = 1;
-		bpar = 0;
-		switch(isel_type(j))
+	  {
+	    tmp.initialize(); tmp2.initialize();
+	    dvector iy(1,yr_nodes(j));
+	    dvector ia(1,age_nodes(j));
+	    byr = 1;
+	    bpar = 0;
+	    switch(isel_type(j))
 		{
 			case 1:
 				// logistic selectivity for case 1 or 6
 				for(i=syr; i<=nyr; i++)
 				{
-					if( i == sel_blocks(j,byr) )
-					{
-						bpar ++;
-						if( byr < n_sel_blocks(j) ) byr++;
-					}
+				  if(verbose) cout<<"year "<<i<<endl;
+				  if( i == sel_blocks(j,byr) )
+				    {
+				      bpar ++;
+				      if( byr < n_sel_blocks(j) ) byr++;
+				    }
 
 					p1 = mfexp(sel_par(j,bpar,1));
 					p2 = mfexp(sel_par(j,bpar,2));
@@ -1322,12 +1337,15 @@ FUNCTION calcTotalMortality
 	In the case of spawn on kelp (roe fisheries), the Fishing mortality does not
 	occur on the adult component.  Added if(catch_type(k)!=3) //exclude roe fisheries
 	*/
+       if(verbose) cout<<"||-- NOW ENTERING calcTotalMortality --||"<<endl;
+
 	int i,k,ki;
 	dvariable ftmp;
 	F.initialize();
 	ft.initialize();
 	log_ft.initialize();
 	
+       if(verbose) cout<<"|| ** AFTER INITIALIZATION --||"<<endl;
 	//Fishing mortality
 	ki=1;
 	for(k=1;k<=ngear;k++)
@@ -1385,6 +1403,10 @@ FUNCTION calcTotalMortality
   }
 	
 	
+	for(i=syr+1;i<=nyr;i++){
+		log_rt(i)=log_avgrec+log_rec_devs(i);
+		N(i,sage)=mfexp(log_rt(i));
+	}
 FUNCTION calcNumbersAtAge
   {
 	/*
@@ -1395,7 +1417,7 @@ FUNCTION calcNumbersAtAge
 		affect models that were using time varying natural mortality.
 	*/
 	
-	int i,j;
+        int i,j;
 	N.initialize();
 	dvariable avg_M = mean(M_tot(syr));
 	dvar_vector lx(sage,nage);
@@ -1431,7 +1453,7 @@ FUNCTION calcNumbersAtAge
 	// SM Depreceated Aug 9, 2012
 	//N(syr,nage)/=(1.-exp(-m_bar));
 	
-	//initial number of sage recruits from year syr+1, nyr;
+        //initial number of sage recruits from year syr+1, nyr;
 	for(i=syr+1;i<=nyr;i++){
 		log_rt(i)=log_avgrec+log_rec_devs(i);
 		N(i,sage)=mfexp(log_rt(i));
@@ -1848,6 +1870,7 @@ FUNCTION calc_objective_function
 	
 	
 	//3) likelihood for age-composition data
+	//COUT(Ahat);
 	for(k=1;k<=na_gears;k++)
 	{	
 		if(na_nobs(k)>0){
@@ -2077,7 +2100,7 @@ FUNCTION calc_objective_function
 	
 	if(verbose)
 	{
-		COUT(nlvec);
+	        COUT(nlvec);
 		cout<<"lvec\t"<<lvec<<endl;
 		cout<<"priors\t"<<priors<<endl;
 		cout<<"penalties\t"<<pvec<<endl;
@@ -2086,6 +2109,8 @@ FUNCTION calc_objective_function
 	//cout<<f<<endl;
 	nf++;
 	if(verbose)cout<<"**** Ok after calc_objective_function ****"<<endl;
+	// test initial values
+	//exit(1);
 	
   }
 
@@ -2599,6 +2624,7 @@ FUNCTION void calc_reference_points()
 		dvector fadj(1,nfleet);
 		
 		ofstream report_file("iscam.eql");
+		cout << "OK TO BE HERE"<<endl;
 		if(report_file.is_open())
 		{
 			report_file<<"      index";
@@ -2611,9 +2637,11 @@ FUNCTION void calc_reference_points()
 			report_file<<endl;
 			
 			fmult = 0; i=1;
+         		cout << "OK TO BE HERE"<<endl;
 			while(i<300)
 			{
 				fe = fmult*fmsy;
+				
 				cRFP.calc_equilibrium(fe);
 				report_file<<setw(11)<<i++;
 				report_file<<setw(10)<<fe;
@@ -2626,15 +2654,18 @@ FUNCTION void calc_reference_points()
 
 				fmult += 0.01;
 			}
+
 		}
+         		
 	}
-	//exit(1);
 	if(verbose)cout<<"**** Ok after calc_reference_points ****"<<endl;
+        
+	
   }
 	
 FUNCTION void simulationModel(const long& seed)
   {
-	/*
+ 	/*
 	Call this routine to simulate data for simulation testing.
 	The random number seed can be used to repeat the same 
 	sequence of random number for simulation testing.
@@ -2685,11 +2716,12 @@ FUNCTION void simulationModel(const long& seed)
 
 	// Initialize selectivity based on model parameters.
     calcSelectivities(isel_type);
-    cout<<"	Ok after calcSelectivities"<<endl;
+    if(verbose)cout<<"	Ok after calcSelectivities"<<endl;
 
     // Initialize natural mortality rates.  Should add Random-walk in M parameters here.
     calcTotalMortality();
-
+    if(verbose)cout<<"	Ok after calcSMortality"<<endl;
+    
 	
 	/*----------------------------------*/
 	/*	-- Generate random numbers --	*/
@@ -2715,6 +2747,7 @@ FUNCTION void simulationModel(const long& seed)
 	//now loop over surveys and scale the observation errors
 	for(k=1;k<=nit;k++)
 	{
+
 		for(j=1;j<=nit_nobs(k);j++)
 		{
 			if(it_wt(k,j)!=0)
@@ -2745,6 +2778,7 @@ FUNCTION void simulationModel(const long& seed)
 	
 	//Initial numbers-at-age with recruitment devs
 	N.initialize();
+	if(verbose) cout << "Initial recruitment " << mfexp(log_avgrec) << endl;
 	if(cntrl(5))    //If initializing in at unfished conditions
 	{	
 		log_rt(syr) = log(ro);
@@ -2763,7 +2797,7 @@ FUNCTION void simulationModel(const long& seed)
 		N(i,sage)=mfexp(log_rt(i));
 	}
 	N(nyr+1,sage)=mfexp(log_avgrec);
-	cout<<"	Ok after initialize model\n";
+	if(verbose)cout<<"N(syr)"<<N(syr)<<endl;
 	/*----------------------------------*/
 	
 	
@@ -2832,8 +2866,8 @@ FUNCTION void simulationModel(const long& seed)
 	// }
 	//exit(1);
 	dlog_sel=value(log_sel);
-	
-	/*
+	cout<<"Hello, I'm here !"<<endl;	
+        /*
 		for(i=syr;i<=nyr;i++)
 		{
 			//sel(k)(i)=plogis(age,ahat(k),ghat(k));
@@ -2842,7 +2876,6 @@ FUNCTION void simulationModel(const long& seed)
 		}
 	//log_sel(j)(i) -= log(mean(mfexp(log_sel(j)(i))));
 	*/
-	cout<<"	Ok after selectivity\n";
 
 	/*----------------------------------*/
 	
@@ -2858,14 +2891,13 @@ FUNCTION void simulationModel(const long& seed)
 	dvector sbt(syr,nyr+1);
 	sbt.initialize();
 	
-	
-	for(i=syr;i<=nyr;i++)
+	cout<<"Observed catch "<<obs_ct<<endl;
+        for(i=syr;i<=nyr;i++)
 	{   
-		
 		//total biomass at age
 		//dvector bt = elem_prod(value(N(i)),wa);
 		dvector bt = elem_prod(value(N(i)),wt_obs(i));
-
+		
 		/*calculate instantaneous fishing mortalities
 		based on Baranov's catch equation and the 
 		observed catch from each fleet.*/
@@ -2880,6 +2912,7 @@ FUNCTION void simulationModel(const long& seed)
 		for(k=1;k<=ngear;k++)
 		{
 			va(k)=exp(dlog_sel(k)(i));
+		        cout<<"Vulnerability for gear "<<k<<" : "<<va(k)<<endl;
 			// if( sim_ctrl(1)(k) )
 			if( cntrl(15) == 1 && allocation(k) > 0 )
 			{
@@ -2888,11 +2921,12 @@ FUNCTION void simulationModel(const long& seed)
 				log_sel(k)(i)  = dlog_sel(k)(i);
 			}
 		}
-		
 		//get_ft is defined in the Baranov.cxx file
 		//CHANGED these ft are based on biomass at age, should be numbers at age
 		//ft(i) = get_ft(oct,value(m),va,bt);
 		//ft(i) = get_ft(oct,value(m),va,value(N(i)),wt_obs(i));
+		cout<<"++++++++++++++ YEAR "<<i<<"++++++++++++++++++"<<endl;
+		cout<<"  -- N("<<i<<")="<<N(i)<<endl;
 		ft(i) = getFishingMortality(oct, value(m), va, value(N(i)),wt_obs(i));
 		//cout<<"ft\t"<<ft(i)<<endl;
 		//cout<<trans(obs_ct)(i)<<"\t"<<oct<<endl;
@@ -2912,7 +2946,7 @@ FUNCTION void simulationModel(const long& seed)
 		
 		//CHANGED definition of spawning biomass based on ctrl(13)
 		sbt(i) = value(elem_prod(N(i),exp(-zt(i)*cntrl(13)))*fec(i));
-		
+		cout<<"Spawning biomass "<<sbt(i)<<endl;
 		//Update numbers at age
 		// SM Changed to allow for pinfile to over-ride S_R relationship.
 		if(i>=syr+sage-1 && !pinfile)
@@ -2922,6 +2956,8 @@ FUNCTION void simulationModel(const long& seed)
 			double et=sbt(i-sage+1);
 			if(cntrl(2)==1)rt=value(so*et/(1.+beta*et));
 			if(cntrl(2)==2)rt=value(so*et*exp(-beta*et));
+			cout << "              so="<<so<<", et="<<et<<"beta="<<beta<<endl;
+			cout<<"Rt"<<rt<<endl;
 			N(i+1,sage)=rt*exp(wt(i)-0.5*tau*tau);
 			
 			/*CHANGED The recruitment calculation above is incosistent
@@ -2932,7 +2968,7 @@ FUNCTION void simulationModel(const long& seed)
 			//N(i+1,sage)=exp(log_avgrec+wt(i));
 			
 		}
-
+		cout<<"happy to see you so far"<<endl;
 
 		N(i+1)(sage+1,nage)=++elem_prod(N(i)(sage,nage-1),exp(-zt(i)(sage,nage-1)));
 		N(i+1,nage)+=N(i,nage)*exp(-zt(i,nage));
@@ -2982,7 +3018,6 @@ FUNCTION void simulationModel(const long& seed)
 	
 	cout<<"	log(mean(column(N,sage))) = "<<mean(log(column(N,sage)))<<endl;
 	cout<<"	log_avgrec = "<<log_avgrec<<endl;
-	cout<<"	Ok after population dynamics\n";
 	/*----------------------------------*/
 	
 	/*----------------------------------*/
@@ -2994,8 +3029,9 @@ FUNCTION void simulationModel(const long& seed)
 	double age_tau = value(sqrt(rho)*varphi);
 	for(k=1;k<=na_gears;k++)
 	{
-		for(i=1;i<=na_nobs(k);i++)
-		{
+
+		  for(i=1;i<=na_nobs(k);i++)
+		  {
 			ii=A(k,i,a_sage(k)-2);	//index for year
 			ig=A(k,i,a_sage(k)-1);	//index for gear
 			dvector pa = d3C(ig)(ii);	//
@@ -3009,8 +3045,10 @@ FUNCTION void simulationModel(const long& seed)
 			{
 				A(k)(i)(a_sage(k),a_nage(k))=t1;
 			}
-			//cout<<iyr<<"\t"<<k<<endl;
+			
+
 		}
+			cout<<iyr<<"\t"<<k<<endl;
 	}
 
 	//cout<<Ahat<<endl;
@@ -3019,6 +3057,7 @@ FUNCTION void simulationModel(const long& seed)
 	//CHANGED fixed this to reflect survey timing etc & survey_type
 	for(k=1;k<=nit;k++)
 	{   
+	  cout <<"nit="<<nit<<", k="<<k<<endl; 
 		for(i=1;i<=nit_nobs(k);i++)
 		{
 			ii=iyr(k,i);
@@ -3053,7 +3092,7 @@ FUNCTION void simulationModel(const long& seed)
 	//had to calculate m_bar before running this routine.
 	
 	calc_reference_points();
-	//cout<<"	OK after reference points\n"<<fmsy<<endl;
+	//cout<<"	OK after ference points\n"<<fmsy<<endl;
 	//exit(1);
 	//	REPORT(fmsy);
 	//	REPORT(msy);
@@ -3505,7 +3544,10 @@ FUNCTION void projection_model(const double& tac);
 		if(i==nage) 
 			lx(i) /= 1.0 - exp( -m_M );
 	}	
-	double phib = lx*avg_fec;
+	
+	cout<<"lx : "<<lx<<endl;
+        double phib = lx*avg_fec;
+	cout << "phib"<<phib<<endl ;
 	double so   = value(kappa)/phib;
 	double bo   = value(ro)*phib;
 	

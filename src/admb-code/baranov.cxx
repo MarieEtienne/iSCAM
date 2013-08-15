@@ -39,13 +39,13 @@ dvector getFishingMortality(const dvector &ct, const double &m, const dmatrix &V
 	dvector   ba(na.indexmin(),na.indexmax());
 	dmatrix    F(1,ngear,V.colmin(),V.colmax());
 	
-	
+        cout<<"Now ENTERING getFishingMortality"<<endl;	
 	
 	// Initial guess for fishing mortality rates;
 	ba        = elem_prod(na,wa);
+	
 	double bt = (na * exp(-0.5*m)) * wa;
 	ft        = ct / bt;
-		
 	// Iterative soln for catch equation using Newton-Raphson
 	for(its=1; its<=MAXITS; its++)
 	{
@@ -54,7 +54,6 @@ dvector getFishingMortality(const dvector &ct, const double &m, const dmatrix &V
 		dvector za = m + colsum(F);
 		dvector sa = exp(-za);
 		dvector oa = (1.-sa);
-		
 		for(i=1;i<=ngear;i++)
 		{
 			for(j=1;j<=ngear;j++)
@@ -79,18 +78,19 @@ dvector getFishingMortality(const dvector &ct, const double &m, const dmatrix &V
 			}	
 		}
 		fx   = ct - chat;
+		
 		//The following couts were used to debug the transpose error in the Jacobian.
 		
-		//cout<<"fx = "<<fx<<endl;
+        	//cout<<"fx = "<<fx<<endl;
 		//cout<<"Jacobian\t"<<"its = "<<its<<"\n"<<J<<endl;
 		invJ = -inv(J);
 		ft  += fx*invJ;
 		
 		if( norm(fx) < 1.e-15 ) break;
 	}
-	
+		
 	for(i=1;i<=ngear;i++) if(ft(i)>MAXF) ft(i) = MAXF;
-	
+	cout<<"      ft"<<ft<<endl;
 	return (ft);
 }
 
