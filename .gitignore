@@ -78,3 +78,7 @@
 Icon?
 ehthumbs.db
 Thumbs.db
+
+## binary files in dist
+####################
+dist/*
