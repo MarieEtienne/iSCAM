@@ -100,6 +100,7 @@ DATA_SECTION
 	// 1) ProjectFileControl.pfc (used for stock projections under TAC)          //
 	// 2) DataFile.dat           (data to condition the assessment model on)     //
 	// 3) ControlFile.ctl        (controls for phases, selectivity options )     //
+	// 4) SimulationFile.ctl        (controls for selectivity in simulation)     //
 	//                                                                           //
 	// NOTES:                                                                    //
 	//                                                                           //
@@ -113,8 +114,11 @@ DATA_SECTION
 	init_adstring DataFile;
 	init_adstring ControlFile;
 	init_adstring ProjectFileControl;
+	init_adstring SimulationFile;
 
-	
+	//!! cout<< SimulationFile<<endl;
+		
+
 	// ------------------------------------------------------------------------- //
 	// READ IN PROJECTION FILE CONTROLS                                          //
 	// ------------------------------------------------------------------------- //	
@@ -267,13 +271,7 @@ DATA_SECTION
 	
 	init_number fixed_m;		//FIXME: depricate this from data files
 	init_vector natM(sage,nage);
-	LOC_CALCS
-		cout << "Natural mortality at age "<<natM<< endl;
-	END_CALCS
 	init_number linf;	
-	LOC_CALCS
-		cout << "linf "<<linf<<endl;
-	END_CALCS
 	init_number vonbk;
 	init_number to;
 	init_number a;
@@ -378,8 +376,7 @@ DATA_SECTION
 //Mean weight-at-age data (units are kg) (if exists)
 	init_int n_wt_nobs;
 	init_matrix tmp_wt_obs(1,n_wt_nobs,sage-1,nage);
-        !! cout << "ok" << endl;
-	
+
         matrix wt_obs(syr,nyr+1,sage,nage);		//weight-at-age
 	matrix wt_dev(syr,nyr+1,sage,nage);		//standardized deviations in weight-at-age
 	matrix fec(syr,nyr+1,sage,nage);		//fecundity-at-age
@@ -432,8 +429,6 @@ DATA_SECTION
 		//tmp = colsum(wt_obs.sub(syr,nyr))/(nyr-syr+1.);
 		//avg_wt = tmp;
 		
-		cout<<"n_wt_nobs\t"<<n_wt_nobs<<endl;
-		cout<<"Ok after empiracle weight-at-age data"<<endl;
 		
 		//July 14, 2011 Error handler to ensure non-zero wt_obs
 		//in the data. Otherwise causes and error with weight-based
@@ -658,6 +653,11 @@ DATA_SECTION
 					isel_npar(i) = age_nodes(i);
 					jsel_npar(i) = n_sel_blocks(i);
 					break;
+				case 13:
+					// logistic selectivity
+					isel_npar(i) = 2;
+					jsel_npar(i) = n_sel_blocks(i); 
+					break;
 					
 				default: break;
 			}
@@ -754,8 +754,29 @@ DATA_SECTION
 		if(verbose) COUT(pf_cntrl);
 	END_CALCS
 
-	
-	// END OF DATA_SECTION
+	// ------------------------------------------------------------------------- //
+	// READ IN SIMULATION FILE                                                   //
+	// ------------------------------------------------------------------------- //	
+	// 
+	!! ad_comm::change_datafile_name(SimulationFile);
+        init_int sim_ngear;
+	init_matrix sim_log_sel(1,sim_ngear,sage,nage);
+	//End of data file
+	init_int eof_sim;	
+	LOC_CALCS
+	  if(sim_ngear!=ngear)
+	    cout << "Error : number of selectivity functions specified ("<< sim_ngear <<") is not equal to the number of gear ("<< ngear <<")."<<endl;
+	  cout << sim_log_sel <<endl;
+	  cout<<"eof = "<<eof_sim<<endl;
+	  if(eof_sim==999){
+		cout<<"\n -- END OF SIMULATION FILE -- \n"<<endl;
+	  }else{
+		cout<<"\n *** ERROR SIMULATION FILE *** \n"<<endl; exit(1);
+	  }
+	END_CALCS
+
+	//*/
+	//// END OF DATA_SECTION
 	!! if(verbose) cout<<"||-- END OF DATA_SECTION --||"<<endl;
 	
 INITIALIZATION_SECTION
@@ -771,12 +792,17 @@ PARAMETER_SECTION
 	//theta[6]		rho
 	//theta[7]		vartheta
 	
+	!! if(verbose) cout<<"||-- STARTING PARAMETERS SECTION --||"<<endl;
 	
 	init_bounded_number_vector theta(1,npar,theta_lb,theta_ub,theta_phz);
 	//!! for(int i=1;i<=npar;i++) theta(i)=theta_ival(i);
         
+
 	//Selectivity parameters (A very complicated ragged array)
 	init_bounded_matrix_vector sel_par(1,ngear,1,jsel_npar,1,isel_npar,-25.,25.,sel_phz);
+
+
+
 	LOC_CALCS
 		//initial values for logistic selectivity parameters
 		//set phase to -1 for fixed selectivity.
@@ -808,7 +834,6 @@ PARAMETER_SECTION
 						// 	ahat(k) = -log(-(ahat(k)-linf)/linf)/vonbk;
 						// }
 
-							
 						sel_par(k,j,1) = log(ahat(k)*exp(uu));
 						sel_par(k,j,2) = log(ghat(k));
 					}
@@ -816,6 +841,7 @@ PARAMETER_SECTION
 			}
 		}
 	END_CALCS
+	
 	
 	//Fishing mortality rate parameters
 	init_bounded_vector log_ft_pars(1,ft_count,-30.,3.0,1);
@@ -838,6 +864,8 @@ PARAMETER_SECTION
 	//!! ii=syr-nage+sage;
 	//!! if(cntrl(5)) ii = syr;  //if initializing with ro
 	//init_bounded_vector log_rec_devs(ii,nyr,-15.,15.,2);
+	
+
 	
 	!! int init_dev_phz = 2;
 	!! if(cntrl(5)) init_dev_phz = -1;
@@ -914,8 +942,7 @@ PRELIMINARY_CALCS_SECTION
 	// | 1) get Simulation controls from *.sim
  	// | 
   nf=0;
-  // cout<<"OK TO HERE"<<endl;
-  if(SimFlag) 
+   if(SimFlag) 
   {
     initParameters();
 	if(verbose) cout<<"||-- SIMULATION MODE--||"<<endl;
@@ -925,14 +952,15 @@ PRELIMINARY_CALCS_SECTION
   if(verbose) cout<<"||-- END OF PRELIMINARY_CALCS_SECTION --||"<<endl;
 
 RUNTIME_SECTION
-    maximum_function_evaluations 100,200,500,25000,25000
+    maximum_function_evaluations 200,400,800,32000,64000
     convergence_criteria 0.01,0.01,1.e-5,1.e-5
 
 
 PROCEDURE_SECTION
 	initParameters();
-  
+	
 	calcSelectivities(isel_type);
+	
 
 	calcTotalMortality();
 	
@@ -1279,7 +1307,23 @@ FUNCTION void calcSelectivities(const ivector& isel_type)
 				}
 				break;
 				
-				
+			case 13:
+				// logistic selectivity 1-plogis
+				for(i=syr; i<=nyr; i++)
+				{
+				  if(verbose) cout<<"year "<<i<<endl;
+				  if( i == sel_blocks(j,byr) )
+				    {
+				      bpar ++;
+				      if( byr < n_sel_blocks(j) ) byr++;
+				    }
+
+					p1 = mfexp(sel_par(j,bpar,1));
+					p2 = mfexp(sel_par(j,bpar,2));
+					log_sel(j)(i) = log( (1- plogis(age,p1,p2))+tiny );
+				}
+				break;
+
 			default:
 				log_sel(j)=0;
 				break;
@@ -1316,7 +1360,6 @@ FUNCTION void calcSelectivities(const ivector& isel_type)
 				exit(1);*/
 	
 	}
-	
 	if(verbose)cout<<"**** Ok after calcSelectivities ****"<<endl;
 	
   }	
@@ -1352,8 +1395,7 @@ FUNCTION calcTotalMortality
 	ft.initialize();
 	log_ft.initialize();
 	
-       if(verbose) cout<<"|| ** AFTER INITIALIZATION --||"<<endl;
-	//Fishing mortality
+     //Fishing mortality
 	ki=1;
 	for(k=1;k<=ngear;k++)
 	{
@@ -1409,7 +1451,6 @@ FUNCTION calcTotalMortality
 	
 	Z=M_tot+F;
 	S=mfexp(-Z);
-	if(verbose) cout <<"tot mortalite : "<< M_tot<<endl;
 	if(verbose) cout<<"**** OK after calcTotalMortality ****"<<endl;
 	
   }
@@ -1595,6 +1636,8 @@ FUNCTION calcFisheryObservations
 			ct(k,i)=Chat(k,i)*wt_obs(i);  //SM Dec 6, 2010*/
 		}
 	}
+
+
 	if(verbose)cout<<"**** Ok after calcFisheryObservations ****"<<endl;
 
   }	
@@ -1948,6 +1991,8 @@ FUNCTION calc_objective_function
 					dvar_vector df2 = first_difference(first_difference(log_sel(k)(i)));
 					nlvec(5,k)     += sel_2nd_diff_wt(k)/(nage-sage+1)*df2*df2;
 
+					// MPE 15/08 : I don't understand this penalty, does not allow selectivity to increase and then decrease,
+					// avoid penalty only for dercreasinf function
 					//penalty for dome-shapeness
 					for(j=sage;j<=nage-1;j++)
 						if(log_sel(k,i,j)>log_sel(k,i,j+1))
@@ -2727,12 +2772,22 @@ FUNCTION void simulationModel(const long& seed)
 	int i,j,k,ii,ki;
 
 	// Initialize selectivity based on model parameters.
-    calcSelectivities(isel_type);
+	// calcSelectivities(isel_type);
+	// Initialize selectivity based on simulation file
+	for(k=1; k<=ngear; ++k)
+	{
+		for(j=syr; j<=nyr; ++j)
+		{
+			for(i=sage; i<=nage; ++i)
+				log_sel(k,j,i)=sim_log_sel(k,i);
+		}
+	}
+    if(verbose)cout << log_sel << endl;
     if(verbose)cout<<"	Ok after calcSelectivities"<<endl;
 
     // Initialize natural mortality rates.  Should add Random-walk in M parameters here.
     calcTotalMortality();
-    if(verbose)cout<<"	Ok after calcSMortality"<<endl;
+    if(verbose)cout<<"	Ok after calcTotalMortality"<<endl;
     
 	
 	/*----------------------------------*/
@@ -2753,7 +2808,10 @@ FUNCTION void simulationModel(const long& seed)
 		tau=0;
 	}
 	wt.fill_randn(rng); 
-	wt *= tau - 0.5*tau*tau;
+	// Steve version : TO BE CHECKED
+	//wt *= tau - 0.5*tau*tau;
+	wt *= tau; 
+	wt+=0.5 tau*tau;
 
 	epsilon.fill_randn(rng); 
 	//now loop over surveys and scale the observation errors
@@ -2763,7 +2821,7 @@ FUNCTION void simulationModel(const long& seed)
 		for(j=1;j<=nit_nobs(k);j++)
 		{
 			if(it_wt(k,j)!=0)
-			epsilon(k,j) *= sig/it_wt(k,j) - 0.5*sig*sig;
+			epsilon(k,j) *= sig/it_wt(k,j) - 0.5*sig*sig; // why it_wt does't ot appear in bias correction ?
 		}
 	}
 	COUT(wt);
@@ -2879,6 +2937,9 @@ FUNCTION void simulationModel(const long& seed)
 	//exit(1);
 	dlog_sel=value(log_sel);
 	cout<<"Hello, I'm here !"<<endl;	
+	cout << "---- Log selectivity for simulation is "<<endl;
+	for(i=1; i<=ngear; ++i)
+		cout << log_sel(i,nyr)<<endl;
         /*
 		for(i=syr;i<=nyr;i++)
 		{
@@ -3004,7 +3065,9 @@ FUNCTION void simulationModel(const long& seed)
 		
 	}
 	// COUT(N);
-	
+	cout << "---- Log selectivity for simulation is "<< endl;
+		cout << log_sel<<endl;
+		
 	//initial values of log_ft_pars set to true values
 	ki=1;
 	for(k=1;k<=ngear;k++)
@@ -3038,7 +3101,7 @@ FUNCTION void simulationModel(const long& seed)
 	
 	//Simulated Age-compositions
 	int ig;
-	double age_tau = value(sqrt(rho)*varphi);
+	double age_tau = value(sqrt(rho)*varphi); // ???? why is this equal to sig ???? should be initialised with sqrt(age_tau2) HAS TO BE FIXED
 	for(k=1;k<=na_gears;k++)
 	{
 
@@ -3257,6 +3320,8 @@ REPORT_SECTION
 		for(i=syr;i<=nyr;i++)
 			report<<k<<"\t"<<log_sel(k)(i)<<endl;
 	//REPORT(log_sel);
+	report<<"repSel"<<"\t"<<sel_par(1,1)<<endl;
+	
 	REPORT(vax);
 	REPORT(obs_ct);
 	REPORT(ct);
@@ -3289,6 +3354,7 @@ REPORT_SECTION
 	REPORT(A_nu);
 	REPORT(N);
 	REPORT(wt_obs);
+
 	
 	if(last_phase())
 	{
