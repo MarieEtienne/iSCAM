@@ -6,7 +6,8 @@
 //                                                                               //
 //                                                                               //
 //           Created by Steven Martell on 2010-04-09                             //
-//           Copyright (c) 2010. All rights reserved.                            //
+// Copyright (c) 2010. All rights reserved.  					 //
+// Stolen from Steven Martell on 2013-07 					 //
 //                                                                               //
 // AUTHORS: SJDM Steven Martell                                                  //
 //                                                                               //
@@ -60,7 +61,7 @@
 //--                                                                           --//
 //-- May 6, 2011- added pre-processor commands to determin PLATFORM            --//
 //--              either "Windows" or "Linux"                                  --//
-//--            - change April 10, 2013 to #if defined _WIN32 etc.            --//
+//--            - change April 10, 2013 to #if defined _WIN32 etc.             --//
 //--                                                                           --//
 //--                                                                           --//
 //-- use -mcmult 1.5 for MCMC with log_m_nodes with SOG herrning               --//
@@ -88,7 +89,8 @@
 //-- Feb 18, 2013 - Need to redesign the simulation selectivities.             --//
 //--              - Should probably use a separate simulation control file.    --//               
 //--                                                                           --//
-//--                                                                           --//
+//-- Aug 20, 2013 - Change simulation process,				       --//
+//-- 	     	  - Add Simulation File to control parameters		       --//
 //--                                                                           --//
 // ----------------------------------------------------------------------------- //
 
@@ -920,7 +922,8 @@ PARAMETER_SECTION
 	vector log_m_devs(syr+1,nyr);// log deviations in natural mortality
 	
 	matrix nlvec(1,7,1,ilvec);	//matrix for negative loglikelihoods
-	
+	vector priors(1,npar);
+
 	//matrix jlog_sel(1,ngear,sage,nage);		//selectivity coefficients for each gear type.
 	//matrix log_sur_sel(syr,nyr,sage,nage);	//selectivity coefficients for survey.
 	 
@@ -1978,8 +1981,12 @@ FUNCTION calc_objective_function
 	
 	//4) likelihood for stock-recruitment relationship
 	dvariable tau = sqrt(1.-rho)*varphi;
-	if(active(theta(1)))
-		nlvec(4,1)=dnorm(delta,tau);
+	if(active(theta(1))) // 
+	    nlvec(4,1)=dnorm(delta,tau);
+	else
+	    nlvec(4,1)=dnorm(log_rec_devs,tau);
+
+	  
 	
 	
 	
@@ -2072,7 +2079,6 @@ FUNCTION calc_objective_function
 	/*
 	PRIORS for estimated model parameters from the control file.
 	*/
-	dvar_vector priors(1,npar);
 	dvariable ptmp; priors.initialize();
 	for(i=1;i<=npar;i++)
 	{
@@ -2151,8 +2157,8 @@ FUNCTION calc_objective_function
 	{
 		pvec(1) = dnorm(log_fbar,log(cntrl(7)),cntrl(8));
 		//Penalty for log_rec_devs (CV ~ 0.0707) in early phases
-		pvec(4)=100.*norm2(log_rec_devs);
-		pvec(5)=100.*norm2(init_log_rec_devs);
+		//pvec(4)=100.*norm2(log_rec_devs);
+		//pvec(5)=100.*norm2(init_log_rec_devs);
 	}
 	
 	//Priors for deviations in natural mortality rates
@@ -3037,9 +3043,13 @@ FUNCTION void simulationModel(const long& seed)
 			if(cntrl(2)==2)rt=value(so*et*exp(-beta*et));
 			N(i+1,sage)=rt*exp(wt(i)-0.5*tau*tau);
 			
+			// MPE : I agree  that it is inconsistent with
+			estimated model
+
 			/*CHANGED The recruitment calculation above is incosistent
 			  with the assessment model.  Below recruitment is based on
-			  rt=exp(log_avgrec + wt + rt_dev), where the rt_dev calculation
+			  rt=exp(log_avgrec + wt  + rt_dev), where the
+			  rt_dev calculation
 			is based on the BH or Ricker model.*/
 			//double rt_dev = log(rt)-value(log_avgrec);
 			//N(i+1,sage)=exp(log_avgrec+wt(i));
@@ -3104,7 +3114,7 @@ FUNCTION void simulationModel(const long& seed)
 	int ig;
 	// STEVE VERSION
 	//double age_tau = value(sqrt(rho)*varphi); // ???? why is this equal to sig ???? should be initialised with sqrt(age_tau2) HAS TO BE FIXED
-	dvector age_tau2 = sim_age_tau2; // ???? why is this equal to sig ???? should be initialised with sqrt(age_tau2) HAS TO BE FIXED
+	dvector age_tau2 = sim_age_tau2; // ???? why is this equal to sig ???? should be initialised with sim_age_tau HAS TO BE FIXED
 	
 	for(k=1;k<=na_gears;k++)
 	{
@@ -3119,7 +3129,7 @@ FUNCTION void simulationModel(const long& seed)
 			
 			dvector t1=pa(a_sage(k),a_nage(k));
 			t1/=sum(t1);
-			A(k)(i)(a_sage(k),a_nage(k))=rmvlogistic(t1,sqrt(age_tau2(k)),i+seed);
+			A(k)(i)(a_sage(k),a_nage(k))=rmvlogistic(t1,age_tau2(k),i+seed);
 			if(seed==000)
 			{
 				A(k)(i)(a_sage(k),a_nage(k))=t1;
@@ -3291,6 +3301,7 @@ REPORT_SECTION
 	report<<ProjectFileControl<<endl;
 	REPORT(f);
 	REPORT(nlvec);
+	REPORT(priors);
 	REPORT(ro);
 	double rbar=value(exp(log_avgrec));
 	REPORT(rbar);
@@ -3303,8 +3314,10 @@ REPORT_SECTION
 	REPORT(m);
 	double tau = value(sqrt(1.-rho)*varphi);
 	double sig = value(sqrt(rho)*varphi);
-	REPORT(tau);
 	REPORT(sig);
+	REPORT(tau);
+	REPORT(rho);
+	REPORT(varphi);
 	REPORT(age_tau2);
 	
 	ivector yr(syr,nyr);
