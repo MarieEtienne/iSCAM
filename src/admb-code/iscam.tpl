@@ -178,7 +178,7 @@ DATA_SECTION
 			retro_yrs=atoi(ad_comm::argv[on+1]);
 			cout<<"|____________________________________________________|\n";
 			cout<<"| Implementing Retrospective analysis                |\n";
-			cout<<"|____________________________________________________|\n";
+		cout<<"|____________________________________________________|\n";
 			cout<<"| Number of retrospective years = "<<retro_yrs<<endl;
 		}
 	END_CALCS
@@ -761,9 +761,20 @@ DATA_SECTION
 	!! ad_comm::change_datafile_name(SimulationFile);
         init_int sim_ngear;
 	init_matrix sim_log_sel(1,sim_ngear,sage,nage);
-	//End of data file
+        init_vector sim_age_tau2(1,sim_ngear);
+        init_int nit_sim;
+	init_vector  sim_qt(1,nit_sim);
+	init_number sim_rho; //rho for simulation 
+	init_number sim_varphi; //varphi for simulation 
+	init_number sim_m_bar; 
+	init_number sim_log_ro; 
+	init_number sim_log_avgrec; 
+	init_number sim_log_recinit; 
+        //End of data file
 	init_int eof_sim;	
 	LOC_CALCS
+		cout << "sim_rho" << sim_rho << endl;
+		cout << "sim_log_avgrec" << sim_log_avgrec <<endl;
 	  if(sim_ngear!=ngear)
 	    cout << "Error : number of selectivity functions specified ("<< sim_ngear <<") is not equal to the number of gear ("<< ngear <<")."<<endl;
 	  cout << sim_log_sel <<endl;
@@ -2766,7 +2777,7 @@ FUNCTION void simulationModel(const long& seed)
 	cout<<"\tRandom Seed No.:\t"<< rseed<<endl;
 	cout<<"\tNumber of retrospective years: "<<retro_yrs<<endl;
 	cout<<"___________________________________________________\n"<<endl;
-	
+ 	
 	
 	//Indexes:
 	int i,j,k,ii,ki;
@@ -2774,7 +2785,7 @@ FUNCTION void simulationModel(const long& seed)
 	// Initialize selectivity based on model parameters.
 	// calcSelectivities(isel_type);
 	// Initialize selectivity based on simulation file
-	for(k=1; k<=ngear; ++k)
+ 	for(k=1; k<=ngear; ++k)
 	{
 		for(j=syr; j<=nyr; ++j)
 		{
@@ -2785,20 +2796,18 @@ FUNCTION void simulationModel(const long& seed)
     if(verbose)cout << log_sel << endl;
     if(verbose)cout<<"	Ok after calcSelectivities"<<endl;
 
-    // Initialize natural mortality rates.  Should add Random-walk in M parameters here.
+   // Initialize natural mortality rates.  Should add Random-walk in M parameters here.
     calcTotalMortality();
     if(verbose)cout<<"	Ok after calcTotalMortality"<<endl;
-    
-	
+  	
 	/*----------------------------------*/
 	/*	-- Generate random numbers --	*/
 	/*----------------------------------*/
 	random_number_generator rng(seed);
 	dvector wt(syr-nage-1,nyr+retro_yrs);	//recruitment anomalies if !pinfile
 	dmatrix epsilon(1,nit,1,nit_nobs);  	//observation errors in survey
-	
-	double sig = value(sqrt(rho)*varphi);
-	double tau = value(sqrt(1.-rho)*varphi);
+	double sig = (sqrt(sim_rho)*sim_varphi);
+	double tau = (sqrt(1.-sim_rho)*sim_varphi);
 	COUT(sig);
 	COUT(tau);
 	if(seed==000)
@@ -2811,7 +2820,7 @@ FUNCTION void simulationModel(const long& seed)
 	// Steve version : TO BE CHECKED
 	//wt *= tau - 0.5*tau*tau;
 	wt *= tau; 
-	wt+=0.5 tau*tau;
+	wt+=0.5* tau*tau;
 
 	epsilon.fill_randn(rng); 
 	//now loop over surveys and scale the observation errors
@@ -2837,43 +2846,44 @@ FUNCTION void simulationModel(const long& seed)
     /*		--Initialize model--		*/
 	/*CHANGED now calculating phie based on m_bar and avg_fec*/
 	/*----------------------------------*/
-	dvector lx=pow(exp(-value(m_bar)),age-min(age));
-	lx(nage)/=(1.-exp(-value(m_bar)));
-	double phie=(lx*exp(-value(m_bar)*cntrl(13)))*avg_fec;//fec(syr);
+	dvector lx=pow(exp(-sim_m_bar),age-min(age));
+	lx(nage)/=(1.-exp(-sim_m_bar));
+	double phie=(lx*exp(-(sim_m_bar)*cntrl(13)))*avg_fec;//fec(syr);
 	so=kappa/phie;
 	
 	
 	if(cntrl(2)==1) beta=(kappa-1.)/(ro*phie);
 	if(cntrl(2)==2) beta=log(kappa)/(ro*phie);
 	
+	cout << cntrl(5) << "++++++++++"<<endl;
 	//Initial numbers-at-age with recruitment devs
 	N.initialize();
 	if(verbose) cout << "Initial recruitment " << mfexp(log_avgrec) << endl;
 	if(cntrl(5))    //If initializing in at unfished conditions
 	{	
-		log_rt(syr) = log(ro);
-		N(syr)      = ro * lx;
+		log_rt(syr) = sim_log_ro;
+		N(syr)      = mfexp(sim_log_ro) * lx;
 	}
 	else            //If starting at fished conditions
 	{
-		log_rt(syr)         = log_avgrec+log_rec_devs(syr);
+		log_rt(syr)         = sim_log_avgrec+log_rec_devs(syr);
 		N(syr,sage)         = mfexp(log_rt(syr));
-		dvar_vector tmpr    = mfexp(log_recinit + init_log_rec_devs(sage+1,nage));
+		dvar_vector tmpr    = mfexp(sim_log_recinit + init_log_rec_devs(sage+1,nage));
 		N(syr)(sage+1,nage) = elem_prod(tmpr,lx(sage+1,nage));
 	}
 	
 	for(i=syr+1;i<=nyr;i++){
-		log_rt(i)=log_avgrec+log_rec_devs(i);
+		log_rt(i)=sim_log_avgrec+log_rec_devs(i);
 		N(i,sage)=mfexp(log_rt(i));
 	}
-	N(nyr+1,sage)=mfexp(log_avgrec);
+	N(nyr+1,sage)=mfexp(sim_log_avgrec);
 	if(verbose)cout<<"N(syr)"<<N(syr)<<endl;
 	/*----------------------------------*/
 	
 	
 	
 	/*----------------------------------*/
-    /*		--    Selectivity   --		*/
+        /*--    Selectivity               --*/
 	/*----------------------------------*/
 	/*
 		-Based on values in the control file.
@@ -2935,7 +2945,7 @@ FUNCTION void simulationModel(const long& seed)
 	// 	}
 	// }
 	//exit(1);
-	dlog_sel=value(log_sel);
+	dlog_sel=value(log_sel); // what is that For ?
 	cout<<"Hello, I'm here !"<<endl;	
 	cout << "---- Log selectivity for simulation is "<<endl;
 	for(i=1; i<=ngear; ++i)
@@ -2985,8 +2995,7 @@ FUNCTION void simulationModel(const long& seed)
 		for(k=1;k<=ngear;k++)
 		{
 			va(k)=exp(dlog_sel(k)(i));
-		        cout<<"Vulnerability for gear "<<k<<" : "<<va(k)<<endl;
-			// if( sim_ctrl(1)(k) )
+		       	// if( sim_ctrl(1)(k) )
 			if( cntrl(15) == 1 && allocation(k) > 0 )
 			{
 				va(k) = ifdSelex(va(k),bt);
@@ -2998,10 +3007,7 @@ FUNCTION void simulationModel(const long& seed)
 		//CHANGED these ft are based on biomass at age, should be numbers at age
 		//ft(i) = get_ft(oct,value(m),va,bt);
 		//ft(i) = get_ft(oct,value(m),va,value(N(i)),wt_obs(i));
-		cout<<"++++++++++++++ YEAR "<<i<<"++++++++++++++++++"<<endl;
-		cout<<"  -- N("<<i<<")="<<N(i)<<endl;
 		ft(i) = getFishingMortality(oct, value(m), va, value(N(i)),wt_obs(i));
-		//cout<<"ft\t"<<ft(i)<<endl;
 		//cout<<trans(obs_ct)(i)<<"\t"<<oct<<endl;
 		
 		// overwrite observed catch incase it was modified by get_ft
@@ -3029,8 +3035,6 @@ FUNCTION void simulationModel(const long& seed)
 			double et=sbt(i-sage+1);
 			if(cntrl(2)==1)rt=value(so*et/(1.+beta*et));
 			if(cntrl(2)==2)rt=value(so*et*exp(-beta*et));
-			cout << "              so="<<so<<", et="<<et<<"beta="<<beta<<endl;
-			cout<<"Rt"<<rt<<endl;
 			N(i+1,sage)=rt*exp(wt(i)-0.5*tau*tau);
 			
 			/*CHANGED The recruitment calculation above is incosistent
@@ -3041,7 +3045,7 @@ FUNCTION void simulationModel(const long& seed)
 			//N(i+1,sage)=exp(log_avgrec+wt(i));
 			
 		}
-		cout<<"happy to see you so far"<<endl;
+		//cout<<"happy to see you so far"<<endl;
 
 		N(i+1)(sage+1,nage)=++elem_prod(N(i)(sage,nage-1),exp(-zt(i)(sage,nage-1)));
 		N(i+1,nage)+=N(i,nage)*exp(-zt(i,nage));
@@ -3064,9 +3068,6 @@ FUNCTION void simulationModel(const long& seed)
 		}
 		
 	}
-	// COUT(N);
-	cout << "---- Log selectivity for simulation is "<< endl;
-		cout << log_sel<<endl;
 		
 	//initial values of log_ft_pars set to true values
 	ki=1;
@@ -3101,7 +3102,10 @@ FUNCTION void simulationModel(const long& seed)
 	
 	//Simulated Age-compositions
 	int ig;
-	double age_tau = value(sqrt(rho)*varphi); // ???? why is this equal to sig ???? should be initialised with sqrt(age_tau2) HAS TO BE FIXED
+	// STEVE VERSION
+	//double age_tau = value(sqrt(rho)*varphi); // ???? why is this equal to sig ???? should be initialised with sqrt(age_tau2) HAS TO BE FIXED
+	dvector age_tau2 = sim_age_tau2; // ???? why is this equal to sig ???? should be initialised with sqrt(age_tau2) HAS TO BE FIXED
+	
 	for(k=1;k<=na_gears;k++)
 	{
 
@@ -3115,7 +3119,7 @@ FUNCTION void simulationModel(const long& seed)
 			
 			dvector t1=pa(a_sage(k),a_nage(k));
 			t1/=sum(t1);
-			A(k)(i)(a_sage(k),a_nage(k))=rmvlogistic(t1,age_tau,i+seed);
+			A(k)(i)(a_sage(k),a_nage(k))=rmvlogistic(t1,sqrt(age_tau2(k)),i+seed);
 			if(seed==000)
 			{
 				A(k)(i)(a_sage(k),a_nage(k))=t1;
@@ -3153,14 +3157,15 @@ FUNCTION void simulationModel(const long& seed)
 					Np = elem_prod(Np,fec(ii));
 				break;
 			}
-			it(k,i) = sum(Np) * exp(epsilon(k,i));
+			it(k,i) = sum(Np) * exp(epsilon(k,i)) * sim_qt(k);
 			survey_data(k)(i,2) = it(k,i);
 		}
 	}
 	
 	
 
-	cout<<"	OK after observation models\n";
+	if(verbose)cout<<"	OK after observation models\n";
+
 	/*----------------------------------*/
 	writeSimulatedDataFile();
 	//CHANGED Fixed bug in reference points calc call from simulation model,
