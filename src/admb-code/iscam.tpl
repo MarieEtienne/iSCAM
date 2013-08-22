@@ -1984,7 +1984,7 @@ FUNCTION calc_objective_function
 	if(active(theta(1))) // 
 	    nlvec(4,1)=dnorm(delta,tau);
 	else
-	    nlvec(4,1)=dnorm(log_rec_devs,tau);
+	    nlvec(4,1)=dnorm(log_rec_devs-tau*tau/2,tau);
 
 	  
 	
@@ -3044,7 +3044,7 @@ FUNCTION void simulationModel(const long& seed)
 			N(i+1,sage)=rt*exp(wt(i)-0.5*tau*tau);
 			
 			// MPE : I agree  that it is inconsistent with
-			estimated model
+			//estimated model
 
 			/*CHANGED The recruitment calculation above is incosistent
 			  with the assessment model.  Below recruitment is based on
@@ -3151,7 +3151,6 @@ FUNCTION void simulationModel(const long& seed)
 		{
 			ii=iyr(k,i);
 			if(ii > nyr) break;  //Guard for retrospective on simulations.
-
 			ig=igr(k,i);
 			dvector sel = exp(dlog_sel(ig)(ii));
 			dvector Np = value(elem_prod(N(ii),exp(-zt(ii)*it_timing(k,i))));
