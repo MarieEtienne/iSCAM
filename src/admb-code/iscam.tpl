@@ -772,6 +772,9 @@ DATA_SECTION
 	init_number sim_log_ro; 
 	init_number sim_log_avgrec; 
 	init_number sim_log_recinit; 
+	init_number sim_so; 
+	init_number sim_beta; 
+
         //End of data file
 	init_int eof_sim;	
 	LOC_CALCS
@@ -909,6 +912,7 @@ PARAMETER_SECTION
 	number tau; 				//std of the process errors.
 	number so;
 	number beta;
+	number phibToReport;
 	
 	vector log_rt(syr-nage+sage,nyr);
 	vector vax(sage,nage);		//survey selectivity coefficients
@@ -2826,7 +2830,7 @@ FUNCTION void simulationModel(const long& seed)
 	// Steve version : TO BE CHECKED
 	//wt *= tau - 0.5*tau*tau;
 	wt *= tau; 
-	wt+=0.5* tau*tau;
+	//wt+=0.5* tau*tau; // biais correction is done directly later using exp(wt-0.5 tau*tau/2)
 
 	epsilon.fill_randn(rng); 
 	//now loop over surveys and scale the observation errors
@@ -2858,8 +2862,8 @@ FUNCTION void simulationModel(const long& seed)
 	so=kappa/phie;
 	
 	
-	if(cntrl(2)==1) beta=(kappa-1.)/(ro*phie);
-	if(cntrl(2)==2) beta=log(kappa)/(ro*phie);
+	if(cntrl(2)==1) beta=(kappa-1.)/(mfexp(sim_ro)*phie);
+	if(cntrl(2)==2) beta=log(kappa)/(mfexp(sim_ro)*phie);
 	
 	cout << cntrl(5) << "++++++++++"<<endl;
 	//Initial numbers-at-age with recruitment devs
@@ -3039,8 +3043,10 @@ FUNCTION void simulationModel(const long& seed)
 			double rt;
 			//double et=value(N(i-sage+1))*fec(i-sage+1);
 			double et=sbt(i-sage+1);
-			if(cntrl(2)==1)rt=value(so*et/(1.+beta*et));
-			if(cntrl(2)==2)rt=value(so*et*exp(-beta*et));
+			//cout<<"happy to see you so far"<<endl;
+			
+			if(cntrl(2)==1)rt=sim_so*et/(1.+sim_beta*et);
+			if(cntrl(2)==2)rt=sim_so*et*exp(-sim_beta*et);
 			N(i+1,sage)=rt*exp(wt(i)-0.5*tau*tau);
 			
 			// MPE : I agree  that it is inconsistent with
@@ -3307,7 +3313,12 @@ REPORT_SECTION
 	double rinit=value(exp(log_recinit));
 	REPORT(rinit);
 	REPORT(sbo);
+	REPORT(so);
+	REPORT(beta);
 	REPORT(kappa);
+	REPORT(phibToReport);
+
+
 	double steepness=value(theta(2));
 	REPORT(steepness);
 	REPORT(m);
@@ -3644,8 +3655,10 @@ FUNCTION void projection_model(const double& tac);
         double phib = lx*avg_fec;
 	cout << "phib"<<phib<<endl ;
 	double so   = value(kappa)/phib;
+
 	double bo   = value(ro)*phib;
 	
+
 	double beta;
 	switch(int(cntrl(2)))
 	{
@@ -3656,6 +3669,8 @@ FUNCTION void projection_model(const double& tac);
 			beta = log(value(kappa))/bo;
 		break;
 	}
+	cout << "so"<<so<<endl ;
+	cout << "beta"<<beta<<endl ;
 	
 	/* Fill arrays with historical values */
 	dvector p_sbt(syr,pyr);
