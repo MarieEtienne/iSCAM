@@ -778,7 +778,7 @@ DATA_SECTION
         //End of data file
 	init_int eof_sim;	
 	LOC_CALCS
-		cout << "sim_rho" << sim_rho << endl;
+		cout << "sim_rho" << mfexp(sim_rho) << endl;
 		cout << "sim_log_avgrec" << sim_log_avgrec <<endl;
 	  if(sim_ngear!=ngear)
 	    cout << "Error : number of selectivity functions specified ("<< sim_ngear <<") is not equal to the number of gear ("<< ngear <<")."<<endl;
@@ -863,7 +863,8 @@ PARAMETER_SECTION
 	init_bounded_vector log_ft_pars(1,ft_count,-30.,3.0,1);
 	
 	LOC_CALCS
-		if(!SimFlag) log_ft_pars = log(0.1);
+		//if(!SimFlag) log_ft_pars = log(0.1); // why !SimFlag, no initialisation for log_ft in simulation ??MPE adds it for simulation purpose too
+		log_ft_pars = log(0.1);
 	END_CALCS
 	
 	
@@ -1438,8 +1439,9 @@ FUNCTION calcTotalMortality
 	
 	// TODO Ajouter une mortalite naturelle fixe maispar age
 	// dans BFT stockassesment
+	//M_tot=m;
 	for(i=syr; i<= nyr; i++)
-		M_tot(i)=natM;
+		M_tot(i)=m;
 
 	// Cubic spline to interpolate log_m_devs (log_m_nodes)
 	log_m_devs = 0.;
@@ -1461,8 +1463,7 @@ FUNCTION calcTotalMortality
 		// if(active(log_m_devs)&&i>syr)
 		if(active(log_m_nodes)&&i>syr)
 		{
-		  //M_tot(i)=M_tot(i-1)*exp(log_m_devs(i));
-		  M_tot(i)=natM;
+			M_tot(i)=M_tot(i-1)*exp(log_m_devs(i));
 		}
 	}
 	m_bar = mean( M_tot.sub(pf_cntrl(1),pf_cntrl(2)) );
@@ -1474,10 +1475,7 @@ FUNCTION calcTotalMortality
   }
 	
 	
-	for(i=syr+1;i<=nyr;i++){
-		log_rt(i)=log_avgrec+log_rec_devs(i);
-		N(i,sage)=mfexp(log_rt(i));
-	}
+
 FUNCTION calcNumbersAtAge
   {
 	/*
@@ -1987,8 +1985,6 @@ FUNCTION calc_objective_function
 	dvariable tau = sqrt(1.-rho)*varphi;
 	if(active(theta(1))) // 
 	    nlvec(4,1)=dnorm(delta,tau);
-	else
-	    nlvec(4,1)=dnorm(log_rec_devs-tau*tau/2,tau);
 
 	  
 	
@@ -2806,7 +2802,7 @@ FUNCTION void simulationModel(const long& seed)
     if(verbose)cout << log_sel << endl;
     if(verbose)cout<<"	Ok after calcSelectivities"<<endl;
 
-   // Initialize natural mortality rates.  Should add Random-walk in M parameters here.
+   // Initialize natural mortality rates.  Should add Random-walk in M parameters here. If M is fixed 
     calcTotalMortality();
     if(verbose)cout<<"	Ok after calcTotalMortality"<<endl;
   	
@@ -2862,8 +2858,8 @@ FUNCTION void simulationModel(const long& seed)
 	so=kappa/phie;
 	
 	
-	if(cntrl(2)==1) beta=(kappa-1.)/(mfexp(sim_ro)*phie);
-	if(cntrl(2)==2) beta=log(kappa)/(mfexp(sim_ro)*phie);
+	if(cntrl(2)==1) beta=(kappa-1.)/(mfexp(sim_log_ro)*phie);
+	if(cntrl(2)==2) beta=log(kappa)/(mfexp(sim_log_ro)*phie);
 	
 	cout << cntrl(5) << "++++++++++"<<endl;
 	//Initial numbers-at-age with recruitment devs
@@ -2883,7 +2879,7 @@ FUNCTION void simulationModel(const long& seed)
 	}
 	
 	for(i=syr+1;i<=nyr;i++){
-		log_rt(i)=sim_log_avgrec+log_rec_devs(i);
+		log_rt(i)=sim_log_avgrec+log_rec_devs(i); // why this in simulation ?
 		N(i,sage)=mfexp(log_rt(i));
 	}
 	N(nyr+1,sage)=mfexp(sim_log_avgrec);
@@ -2956,8 +2952,8 @@ FUNCTION void simulationModel(const long& seed)
 	// }
 	//exit(1);
 	dlog_sel=value(log_sel); // what is that For ?
-	cout<<"Hello, I'm here !"<<endl;	
-	cout << "---- Log selectivity for simulation is "<<endl;
+	//cout<<"Hello, I'm here !"<<endl;	
+	//cout << "---- Log selectivity for simulation is "<<endl;
 	for(i=1; i<=ngear; ++i)
 		cout << log_sel(i,nyr)<<endl;
         /*
@@ -3019,6 +3015,7 @@ FUNCTION void simulationModel(const long& seed)
 		//ft(i) = get_ft(oct,value(m),va,value(N(i)),wt_obs(i));
 		ft(i) = getFishingMortality(oct, value(m), va, value(N(i)),wt_obs(i));
 		//cout<<trans(obs_ct)(i)<<"\t"<<oct<<endl;
+		cout << "**** Simulation : Fishing Mortality : "<<  ft(i) <<endl;
 		
 		// overwrite observed catch incase it was modified by get_ft
 		// SJDM Deprecated Sept 10, 2012
@@ -3635,7 +3632,7 @@ FUNCTION void projection_model(const double& tac);
 	static int runNo=0;
 	runNo ++;
 	int i,j,k;
-	int pyr = nyr+1;	//projection year.
+	int pyr = nyr+10;	//projection year.
 	
 	// --derive stock recruitment parameters
 	// --survivorship of spawning biomass
@@ -3688,16 +3685,20 @@ FUNCTION void projection_model(const double& tac);
 	
 	/* Selectivity and allocation to gears */
 	dmatrix va_bar(1,ngear,sage,nage);
+	
+	cout<<"ENTERING projection_model()"<<endl;
 	for(k=1;k<=ngear;k++)
 	{
 		p_ct(k)   = allocation(k)*tac;
 		va_bar(k) = exp(value(log_sel(k)(nyr)));
 	}
-		
+	
+	cout<<"Ahh great you are here !!"<<endl;
+	// MPE  AUG 26th 2013 : change to have multiple year results	
 	/* Simulate population into the future under constant tac policy. */
 	for(i = nyr; i<=pyr; i++)
 	{
-		
+		cout <<"projection year "<<i<<endl;
 		if(i > nyr)
 		{
 			// get_ft is defined in the Baranov.cxx file
@@ -3710,12 +3711,15 @@ FUNCTION void projection_model(const double& tac);
 			{
 				p_Z(i)+=p_ft(i,k)*va_bar(k);
 			}
+			cout<<"p_ft -- : "<<p_ft(i)<<endl;
+
 		}
 		
 		
 		// spawning biomass
 		p_sbt(i) = elem_prod(p_N(i),exp(-p_Z(i)*cntrl(13))) * avg_fec;
-		
+		cout<<"SPBT -- : "<<p_sbt(i)<<endl;
+	
 		
 		// sage recruits with random deviate xx
 		// note the random number seed is repeated for each tac level.
@@ -3749,9 +3753,10 @@ FUNCTION void projection_model(const double& tac);
 		//	cout<<sum(elem_div(elem_prod(elem_prod(ba,p_ft(i,k)*va_bar(k)),1.-exp(-p_Z(i))),p_Z(i)));
 		//	cout<<" fmsy = "<<fmsy<<" ft = "<<p_ft(i,k)<<endl;
 		//}
-	}	
-	//cout<<"fmsy\n"<<fmsy<<endl;
-	//cout<<"Spawning biomass\n"<<p_sbt<<endl;
+	}
+	
+	cout<<"fmsy\n"<<fmsy<<endl;
+	cout<<"Spawning biomass\n"<<p_sbt<<endl;
 	//exit(1);
 	/* 
 	  Write output to *.proj file for constructing decision tables. 
@@ -3779,45 +3784,57 @@ FUNCTION void projection_model(const double& tac);
 	  
 	
 	*/
-	if(nf==1 && runNo==1)
+	cout<<"Here we are"<<endl;
+	for(i = nyr; i<=pyr; i++)
 	{
-		ofstream ofs(BaseFileName + ".proj");
-		ofs<<" tac";
-		ofs<<"      P(SB1)"; 
-		ofs<<"      P(SB2)";
-		ofs<<"      P(SB3)";
-		ofs<<"      P(SB4)";
-		ofs<<"      P(SB5)";
-		ofs<<"       P(U1)";
-		ofs<<"       P(U2)";
-		ofs<<"       P(U3)";
-		ofs<<"       P(U4)";
-		ofs<<"       P(D5)";
-		ofs<<endl;
-		cout<<"Bo when nf==1 \t"<<bo<<endl;
-	}
+		char proj_ext;
+		if(nf==1 && runNo==1 & i==nyr)
+		{
+			ofstream ofs(BaseFileName + ".proj" );
+			ofs<<" tac";
+			ofs<<" Year";
+			ofs<<"      P(SB1)"; 
+			ofs<<"      P(SB2)";
+			ofs<<"      P(SB3)";
+			ofs<<"      P(SB4)";
+			ofs<<"      P(SB5)";
+			ofs<<"       P(U1)";
+			ofs<<"       P(U2)";
+			ofs<<"       P(U3)";
+			ofs<<"       P(U4)";
+			ofs<<"       P(D5)";
+			ofs<<endl;
+			cout<<"Bo when nf==1 \t"<<bo<<endl;
+		}
 	
-	double  ut  = tac / p_sbt(pyr);
-	double u20  = tac / ( (p_N(pyr)(3,nage)*exp(-value(M_tot(nyr,3))))* avg_wt(3,nage) );
+		cout <<"+++++++"<< i <<endl;
+		double  ut  = tac / p_sbt(i);
+		double u20  = tac / ( (p_N(i)(3,nage)*exp(-value(M_tot(nyr,3))))* avg_wt(3,nage) );
 	
-	/* Average rate of change in spawning biomass in last 5 years */
-	double dSb5 = mean(log(p_sbt(pyr-5,pyr)) - log(p_sbt(pyr-6,pyr-1).shift(pyr-5)));
+		/* Average rate of change in spawning biomass in last 5 years */
+		double dSb5 = mean(log(p_sbt(pyr-5,pyr)) - log(p_sbt(pyr-6,pyr-1).shift(pyr-5)));
 	
-	ofstream ofs(BaseFileName + ".proj",ios::app);
-	ofs<< setprecision(4)               <<setw(4) 
-	   << tac                           <<setw(12)
-	   << p_sbt(pyr-1)/p_sbt(pyr)       <<setw(12)
-	   << 0.25*bo/p_sbt(pyr)            <<setw(12)
-	   << 0.75*bo/p_sbt(pyr)            <<setw(12)
-	   << 0.40*bmsy/p_sbt(pyr)          <<setw(12)
-	   << 0.80*bmsy/p_sbt(pyr)          <<setw(12)
-	   << ut/Umsy                       <<setw(12)
-	   << ut/(0.5*Umsy)                 <<setw(12)
-	   << ut/(2./3.*Umsy)               <<setw(12)
-	   << u20/0.2                       <<setw(12)
-	   << dSb5+1                        <<setw(12)
-	   << endl;
-	// cout<<"Finished projection model"<<endl;
+		cout <<"+++++++ Fin"<< i <<endl;
+		
+		ofstream ofs(BaseFileName + ".proj" ,ios::app);
+		ofs<< setprecision(4)               <<setw(4) 
+	   	<< tac                           <<setw(12)
+	   	<< i                           <<setw(12)
+	   	<< p_sbt(nyr)/p_sbt(i)       <<setw(12)
+	   	<< 0.25*bo/p_sbt(i)            <<setw(12)
+	   	<< 0.75*bo/p_sbt(i)            <<setw(12)
+	   	<< 0.40*bmsy/p_sbt(i)          <<setw(12);
+		cout <<"+++++++ Fin"<< i <<endl;
+	   	ofs << 0.80*bmsy/p_sbt(i)          <<setw(12)
+	   	<< ut/Umsy                       <<setw(12)
+	   	<< ut/(0.5*Umsy)                 <<setw(12)
+	   	<< ut/(2./3.*Umsy)               <<setw(12)
+	   	<< u20/0.2                       <<setw(12)
+	   	<< dSb5+1                        <<setw(12)
+	   	<< endl;
+		// cout<<"Finished projection model"<<endl;
+		
+  	}
   }
 
 TOP_OF_MAIN_SECTION
