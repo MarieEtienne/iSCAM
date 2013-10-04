@@ -42,7 +42,7 @@
   source("summary.R")
   source("plot_bt.R")
   source("plot.ft.R")
-  source("plot_resid.R")
+  #source("plot_resid.R")
   source("iscamView.R")
   source("plotCatch.R")
   source("plotAgeComps.R")

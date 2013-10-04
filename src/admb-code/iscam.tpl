@@ -966,7 +966,9 @@ PRELIMINARY_CALCS_SECTION
     initParameters();
 	if(verbose) cout<<"||-- SIMULATION MODE--||"<<endl;
 
-    simulationModel(rseed);
+    //simulationModel(rseed);
+    simulationModel2(rseed);
+
   }
   if(verbose) cout<<"||-- END OF PRELIMINARY_CALCS_SECTION --||"<<endl;
 
@@ -3762,10 +3764,10 @@ FUNCTION void projection_model(const double& tac);
 	  Write output to *.proj file for constructing decision tables. 
 	
 	  Biomass Metrics for the decision table:
-	  1) P(SB_{t+1} < SB_{t})
-	  2) P(SB_{t+1} < 0.25 B_{0})
-	  3) P(SB_{t+1} < 0.75 B_{0})
-	  4) P(SB_{t+1} < 0.40 B_{MSY})
+	  1) P(SB_{t+1} < SB_{t}) - col 3
+	  2) P(SB_{t+1} < 0.25 B_{0}) -col 4
+	  3) P(SB_{t+1} < 0.75 B_{0}) -col 5
+	  4) P(SB_{t+1} < 0.40 B_{MSY}) -col 6
 	  5) P(SB_{t+1} < 0.80 B_{MSY})
 	  
 	  Harvest Metrics for the decision table:

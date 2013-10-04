@@ -1674,6 +1674,7 @@ getRepObj   <- function(fileName)
     sz2 <- max(-zb * size/zM, 0.001)
     if (debug) 
         browser()
+    
     symbols(xx, yy, circles = as.vector(abs(z0)), inches = size, 
         fg = 0, ...)
     if (debug) 

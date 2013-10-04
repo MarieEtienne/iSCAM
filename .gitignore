@@ -82,3 +82,14 @@ Thumbs.db
 ## binary files in dist
 ####################
 dist/*
+
+
+src/admb-code/TomAdvice
+src/admb-code/iscam
+src/admb-code/iscam.cpp
+
+
+*~
+
+
+examples/*
