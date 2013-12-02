@@ -966,8 +966,7 @@ PRELIMINARY_CALCS_SECTION
     initParameters();
 	if(verbose) cout<<"||-- SIMULATION MODE--||"<<endl;
 
-    //simulationModel(rseed);
-    simulationModel2(rseed);
+	simulationModel(rseed);
 
   }
   if(verbose) cout<<"||-- END OF PRELIMINARY_CALCS_SECTION --||"<<endl;
@@ -2700,7 +2699,6 @@ FUNCTION void calc_reference_points()
 		dvector fadj(1,nfleet);
 		
 		ofstream report_file("iscam.eql");
-		cout << "OK TO BE HERE"<<endl;
 		if(report_file.is_open())
 		{
 			report_file<<"      index";
@@ -2713,8 +2711,7 @@ FUNCTION void calc_reference_points()
 			report_file<<endl;
 			
 			fmult = 0; i=1;
-         		cout << "OK TO BE HERE"<<endl;
-			while(i<300)
+         		while(i<300)
 			{
 				fe = fmult*fmsy;
 				
@@ -2816,8 +2813,6 @@ FUNCTION void simulationModel(const long& seed)
 	dmatrix epsilon(1,nit,1,nit_nobs);  	//observation errors in survey
 	double sig = (sqrt(sim_rho)*sim_varphi);
 	double tau = (sqrt(1.-sim_rho)*sim_varphi);
-	COUT(sig);
-	COUT(tau);
 	if(seed==000)
 	{
 		cout<<"No Error\n";
@@ -2841,9 +2836,7 @@ FUNCTION void simulationModel(const long& seed)
 			epsilon(k,j) *= sig/it_wt(k,j) - 0.5*sig*sig; // why it_wt does't ot appear in bias correction ?
 		}
 	}
-	COUT(wt);
-	COUT(epsilon);
-	cout<<"	OK after random numbers\n";
+	if(verbose) cout<<"	OK after random numbers\n";
 	/*----------------------------------*/
 	
 	
@@ -2956,8 +2949,11 @@ FUNCTION void simulationModel(const long& seed)
 	dlog_sel=value(log_sel); // what is that For ?
 	//cout<<"Hello, I'm here !"<<endl;	
 	//cout << "---- Log selectivity for simulation is "<<endl;
-	for(i=1; i<=ngear; ++i)
-		cout << log_sel(i,nyr)<<endl;
+	if(verbose)
+	{
+		for(i=1; i<=ngear; ++i)
+			 cout << log_sel(i,nyr)<<endl;
+	}
         /*
 		for(i=syr;i<=nyr;i++)
 		{
@@ -2982,7 +2978,7 @@ FUNCTION void simulationModel(const long& seed)
 	dvector sbt(syr,nyr+1);
 	sbt.initialize();
 	
-	cout<<"Observed catch "<<obs_ct<<endl;
+	if(verbose) cout<<"Observed catch "<<obs_ct<<endl;
         for(i=syr;i<=nyr;i++)
 	{   
 		//total biomass at age
@@ -3017,7 +3013,7 @@ FUNCTION void simulationModel(const long& seed)
 		//ft(i) = get_ft(oct,value(m),va,value(N(i)),wt_obs(i));
 		ft(i) = getFishingMortality(oct, value(m), va, value(N(i)),wt_obs(i));
 		//cout<<trans(obs_ct)(i)<<"\t"<<oct<<endl;
-		cout << "**** Simulation : Fishing Mortality : "<<  ft(i) <<endl;
+		if(verbose) cout << "**** Simulation : Fishing Mortality : "<<  ft(i) <<endl;
 		
 		// overwrite observed catch incase it was modified by get_ft
 		// SJDM Deprecated Sept 10, 2012
@@ -3034,7 +3030,7 @@ FUNCTION void simulationModel(const long& seed)
 		
 		//CHANGED definition of spawning biomass based on ctrl(13)
 		sbt(i) = value(elem_prod(N(i),exp(-zt(i)*cntrl(13)))*fec(i));
-		cout<<"Spawning biomass "<<sbt(i)<<endl;
+		if(verbose) cout<<"Spawning biomass "<<sbt(i)<<endl;
 		//Update numbers at age
 		// SM Changed to allow for pinfile to over-ride S_R relationship.
 		if(i>=syr+sage-1 && !pinfile)
@@ -3809,14 +3805,12 @@ FUNCTION void projection_model(const double& tac);
 			cout<<"Bo when nf==1 \t"<<bo<<endl;
 		}
 	
-		cout <<"+++++++"<< i <<endl;
 		double  ut  = tac / p_sbt(i);
 		double u20  = tac / ( (p_N(i)(3,nage)*exp(-value(M_tot(nyr,3))))* avg_wt(3,nage) );
 	
 		/* Average rate of change in spawning biomass in last 5 years */
 		double dSb5 = mean(log(p_sbt(pyr-5,pyr)) - log(p_sbt(pyr-6,pyr-1).shift(pyr-5)));
 	
-		cout <<"+++++++ Fin"<< i <<endl;
 		
 		ofstream ofs(BaseFileName + ".proj" ,ios::app);
 		ofs<< setprecision(4)               <<setw(4) 
