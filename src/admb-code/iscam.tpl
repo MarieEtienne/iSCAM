@@ -1442,7 +1442,7 @@ FUNCTION calcTotalMortality
 	// dans BFT stockassesment
 	//M_tot=m;
 	for(i=syr; i<= nyr; i++)
-		M_tot(i)=m;
+		M_tot(i)=natM;
 
 	// Cubic spline to interpolate log_m_devs (log_m_nodes)
 	log_m_devs = 0.;
@@ -3311,8 +3311,6 @@ REPORT_SECTION
 	REPORT(so);
 	REPORT(beta);
 	REPORT(kappa);
-	REPORT(phibToReport);
-
 
 	double steepness=value(theta(2));
 	REPORT(steepness);
