@@ -114,13 +114,14 @@ DATA_SECTION
 	// |---------------------------------------------------------------------------------|
 	// |
 	init_adstring DataFile;
+	!! cout<< DataFile<<endl;
+	
 	init_adstring ControlFile;
 	init_adstring ProjectFileControl;
 	init_adstring SimulationFile;
-
-	//!! cout<< SimulationFile<<endl;
-		
-
+	
+	//!! cout<< ControlFile<<endl;
+	
 	// ------------------------------------------------------------------------- //
 	// READ IN PROJECTION FILE CONTROLS                                          //
 	// ------------------------------------------------------------------------- //	
@@ -256,7 +257,7 @@ DATA_SECTION
 		{
 			if(fsh_flag(k)) ifleet(j++) = k;
 		}
-		cout<<"ifleet index\t"<<ifleet<<endl;
+		//cout<<"ifleet index\t"<<ifleet<<endl;
 	END_CALCS
 	
 	//The following code has been deprecated
@@ -347,7 +348,7 @@ DATA_SECTION
 			it_timing(i)=column(survey_data(i),5);
 		}
 		cout<<"Last row of the relative abundance data\n"<<survey_data(nit)(nit_nobs(nit))<<endl;
-		cout<<"OK after relative abundance index"<<endl;
+		//cout<<"OK after relative abundance index"<<endl;
 		/*Normalize survey weights so estimated rho parameter is consistent with sd(epsilon)/sd(rec_devs)*/
 		double mean_it_wt;
 		mean_it_wt = mean(it_wt);
@@ -367,7 +368,7 @@ DATA_SECTION
 	init_3darray A(1,na_gears,1,na_nobs,a_sage-2,a_nage);
 
 	LOC_CALCS
-	        cout<<"After loading Caa data"<<endl;
+	        //cout<<"After loading Caa data"<<endl;
 		for(k=1;k<=na_gears;k++)
 		{
 		    for(i=1;i<=na_nobs(k);++i)
@@ -437,7 +438,7 @@ DATA_SECTION
 		//selectivities.
 		if(min(wt_obs)==0)
 		{
-			cout<<"Cannont have a observed 0 mean weight at age\n";
+			cout<<"Cannot have a observed 0 mean weight at age\n";
 			cout<<"in the data file.  Please fix.\n Aborting program!"<<endl;
 			exit(2);
 		}
@@ -778,11 +779,11 @@ DATA_SECTION
         //End of data file
 	init_int eof_sim;	
 	LOC_CALCS
-		cout << "sim_rho" << mfexp(sim_rho) << endl;
-		cout << "sim_log_avgrec" << sim_log_avgrec <<endl;
+		//cout << "sim_rho" << mfexp(sim_rho) << endl;
+		//cout << "sim_log_avgrec" << sim_log_avgrec <<endl;
 	  if(sim_ngear!=ngear)
 	    cout << "Error : number of selectivity functions specified ("<< sim_ngear <<") is not equal to the number of gear ("<< ngear <<")."<<endl;
-	  cout << sim_log_sel <<endl;
+	  //cout << sim_log_sel <<endl;
 	  cout<<"eof = "<<eof_sim<<endl;
 	  if(eof_sim==999){
 		cout<<"\n -- END OF SIMULATION FILE -- \n"<<endl;
@@ -3751,8 +3752,8 @@ FUNCTION void projection_model(const double& tac);
 		//}
 	}
 	
-	cout<<"fmsy\n"<<fmsy<<endl;
-	cout<<"Spawning biomass\n"<<p_sbt<<endl;
+	if(verbose) cout<<"fmsy\n"<<fmsy<<endl;
+	if (verbose) cout<<"Spawning biomass\n"<<p_sbt<<endl;
 	//exit(1);
 	/* 
 	  Write output to *.proj file for constructing decision tables. 
