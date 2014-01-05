@@ -1444,6 +1444,7 @@ FUNCTION calcTotalMortality
 	//M_tot=m;
 	for(i=syr; i<= nyr; i++)
 		M_tot(i)=natM;
+	
 
 	// Cubic spline to interpolate log_m_devs (log_m_nodes)
 	log_m_devs = 0.;
@@ -1844,8 +1845,8 @@ FUNCTION calcStockRecruitment
 		} 
 		lw(j) = lx(j) * mfexp(-ma(j)*cntrl(13));
 	}
-	lx(nage) /= 1.0 - mfexp(-ma(nage));
-	lw(nage) /= 1.0 - mfexp(-ma(nage));
+	lx(nage) /= (1.0 - mfexp(-ma(nage)));
+	lw(nage) /= (1.0 - mfexp(-ma(nage)));
 	phib      = lw * fa_bar;
 	
 	
@@ -3178,7 +3179,7 @@ FUNCTION void simulationModel(const long& seed)
 	if(verbose)cout<<"	OK after observation models\n";
 
 	/*----------------------------------*/
-	writeSimulatedDataFile();
+	//writeSimulatedDataFile(); commented to avoid overwrite data
 	//CHANGED Fixed bug in reference points calc call from simulation model,
 	//had to calculate m_bar before running this routine.
 	
@@ -3521,11 +3522,13 @@ FUNCTION mcmc_output
 		for(int k=1;k<=nfleet;k++) ofs<<"         msy"<<k;
 		for(int k=1;k<=nfleet;k++) ofs<<"        fmsy"<<k;
 		ofs<<"          SSB";
+		ofs<<"         fFinal";
 		ofs<<"        Age-4";
 		ofs<<"         Poor";
 		ofs<<"      Average";
 		ofs<<"         Good";
 		for(int i=1;i<=nit;i++) ofs<<"         lnq"<<i;
+
 		ofs<<"            f";
 		ofs<<endl;
 		
@@ -3552,6 +3555,7 @@ FUNCTION mcmc_output
 		ofs<<setw(12)<< msy;
 		ofs<<setw(12)<< fmsy;
 		ofs<<setw(13)<< sbt(nyr);
+		ofs<<setw(13)<< ft(1,nyr);
 		ofs<<setw(13)<< future_bt4;
 		ofs<<setw(12)<< future_bt4+rt3;
 		ofs<<setw(12)<< log(q);
@@ -3683,14 +3687,14 @@ FUNCTION void projection_model(const double& tac);
 	/* Selectivity and allocation to gears */
 	dmatrix va_bar(1,ngear,sage,nage);
 	
-	cout<<"ENTERING projection_model()"<<endl;
+	//cout<<"ENTERING projection_model()"<<endl;
 	for(k=1;k<=ngear;k++)
 	{
 		p_ct(k)   = allocation(k)*tac;
 		va_bar(k) = exp(value(log_sel(k)(nyr)));
 	}
 	
-	cout<<"Ahh great you are here !!"<<endl;
+	//cout<<"Ahh great you are here !!"<<endl;
 	// MPE  AUG 26th 2013 : change to have multiple year results	
 	/* Simulate population into the future under constant tac policy. */
 	for(i = nyr; i<=pyr; i++)
@@ -3708,7 +3712,7 @@ FUNCTION void projection_model(const double& tac);
 			{
 				p_Z(i)+=p_ft(i,k)*va_bar(k);
 			}
-			cout<<"p_ft -- : "<<p_ft(i)<<endl;
+			//cout<<"p_ft -- : "<<p_ft(i)<<endl;
 
 		}
 		
@@ -3819,8 +3823,7 @@ FUNCTION void projection_model(const double& tac);
 	   	<< 0.25*bo/p_sbt(i)            <<setw(12)
 	   	<< 0.75*bo/p_sbt(i)            <<setw(12)
 	   	<< 0.40*bmsy/p_sbt(i)          <<setw(12);
-		cout <<"+++++++ Fin"<< i <<endl;
-	   	ofs << 0.80*bmsy/p_sbt(i)          <<setw(12)
+		ofs << 0.80*bmsy/p_sbt(i)          <<setw(12)
 	   	<< ut/Umsy                       <<setw(12)
 	   	<< ut/(0.5*Umsy)                 <<setw(12)
 	   	<< ut/(2./3.*Umsy)               <<setw(12)
